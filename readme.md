@@ -5,7 +5,20 @@ Gerenciador de finanças pessoais via CLI, desenvolvido em C com SQLite.
 ## Dependências
 - GCC
 - SQLite3
-sudo apt install gcc libsqlite3-dev
+
+WSL2 (Ubuntu)
+bashsudo apt update
+sudo apt install gcc make libsqlite3-dev
+
+macOS (Homebrew)
+bashbrew install sqlite
+xcode-select --install
+
+Testar
+gcc --version
+sqlite3 --version
+
+
 
 ## Compilação
 ```bash
