@@ -3,8 +3,10 @@
 #include "db.h"
 #include "session.h"
 #include "ui.h"
+#include "Categories.h"
+#include "Bills.h"
 
-#define DB_PATH "db/moneyflow.db"
+#define DB_PATH "../db/moneyflow.db"
 
 static void menu_principal(void);
 static void menu_inicial(void);
@@ -72,11 +74,11 @@ static void menu_principal(void) {
         switch (opcao) {
             case 1: /* dashboard(); */   break;
             case 2: /* menu_contas(); */ break;
-            case 3: /* menu_categorias(); */ break;
+            case 3:  menu_categorias();  break;
             case 4: /* menu_transacoes(); */ break;
             case 5: /* menu_cartoes(); */ break;
             case 6: /* menu_metas(); */  break;
-            case 7: /* menu_bills(); */  break;
+            case 7:  menu_bills();   break;
             case 8: /* menu_loans(); */  break;
             case 0:
                 session_end();

@@ -8,5 +8,6 @@ extern sqlite3 *db;
 int  db_open(const char *path);
 void db_close(void);
 void db_init(void);
+sqlite3* returnConnection(void);
 
 #endif

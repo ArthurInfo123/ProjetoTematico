@@ -110,4 +110,20 @@ void db_init(void) {
         db_close();
         exit(EXIT_FAILURE);
     }
+    
+    // const char *sqlUser = "INSERT OR IGNORE INTO users (username, password_hash) VALUES ('admin', 'admin');";
+    // if (sqlite3_exec(db, sqlUser, NULL, NULL, &err) != SQLITE_OK) {
+    //     fprintf(stderr, "Erro ao criar usuario admin: %s\n", err);
+    //     sqlite3_free(err);
+    //     db_close();
+    //     exit(EXIT_FAILURE);
+    // }
+}
+
+sqlite3* returnConnection(void)
+{
+    if(db){
+        return db; //Retorno esta conexão para ser usada em outras partes do código
+    }
+    return NULL;
 }
