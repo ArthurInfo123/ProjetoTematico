@@ -20,7 +20,7 @@ void menu_bills() {
 
         switch (opcao) {
             case 1:
-                listar_bills();
+                listar_bills(1);
                 break;
 
             case 2: {
@@ -46,7 +46,7 @@ void menu_bills() {
             }
 
             case 3: {
-                listar_bills();
+                listar_bills(1);
                 int id;
                 char new_name[100];
 
@@ -74,7 +74,7 @@ void menu_bills() {
             }
 
             case 4: {
-                listar_bills();
+                listar_bills(1);
                 int id = ui_read_int("Digite o ID da conta a pagar: ");
                 excluir_bills(id);
                 break;
@@ -99,16 +99,45 @@ int validate_due_day(int due_day) {
     return 1;
 }
 
-void listar_bills() {
+int validade_user_bills(int user_id, int bills_id) {
+    sqlite3 *db = returnConnection();
+    sqlite3_stmt *stmt;
+    const char *sql = "SELECT user_id FROM bills WHERE id = ?;";
+    
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        ui_error("Erro ao validar acesso do usuário.");
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, bills_id);
+
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        int user_id_curr = sqlite3_column_int(stmt, 0);
+        if (user_id_curr != user_id) {
+            ui_error("usuário não tem acesso a este cadastro. Verifique.");
+            return 0;
+        }
+    } else {
+        ui_error("Categoria não encontrada.");
+        return 0;
+    }
+
+    sqlite3_finalize(stmt);
+    return 1;
+}
+
+void listar_bills(int user_id) {
     sqlite3 *db = returnConnection();
     sqlite3_stmt *stmt;
 
-    const char *sql = "SELECT id, description, amount, due_day, paid FROM bills;";
+    const char *sql = "SELECT id, description, amount, due_day, paid FROM bills WHERE user_id = ?;";
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         ui_error("Erro ao listar contas a pagar.");
         return;
     }
+
+    sqlite3_bind_int(stmt, 1, user_id); // Bind the user_id parameter
 
     printf("\n=== CONTAS A PAGAR ===\n");
 
@@ -163,6 +192,8 @@ void editar_bills(int id, const char *name, const char *description, double amou
         ui_error("Erro ao preparar UPDATE.");
         return;
     }
+
+    validade_user_bills(1, id);
 
     sqlite3_bind_text(stmt, 1, description, -1, SQLITE_TRANSIENT);
     sqlite3_bind_double(stmt, 2, amount);

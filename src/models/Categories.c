@@ -20,7 +20,7 @@ void menu_categorias() {
 
         switch (opcao) {
             case 1:
-                listar_categorias();
+                listar_categorias(1);
                 break;
 
             case 2: {
@@ -35,7 +35,7 @@ void menu_categorias() {
             }
 
             case 3: {
-                listar_categorias();
+                listar_categorias(1);
                 int id;
                 char new_name[100];
 
@@ -50,7 +50,7 @@ void menu_categorias() {
             }
 
             case 4: {
-                listar_categorias();
+                listar_categorias(1);
                 int id = ui_read_int("Digite o ID da categoria: ");
                 excluir_categoria(id);
                 break;
@@ -67,12 +67,14 @@ void menu_categorias() {
     } while (opcao != 0);
 }
 
-void listar_categorias() {
+void listar_categorias(int user_id) {
     sqlite3 *db = returnConnection();
     sqlite3_stmt *stmt;
 
-    const char *sql = "SELECT id, name FROM categories;";
+    const char *sql = "SELECT id, name FROM categories WHERE user_id = ?;";
 
+    sqlite3_bind_int(stmt, 1, user_id);
+    
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         ui_error("Erro ao listar categorias.");
         return;
@@ -114,6 +116,33 @@ void adicionar_categoria(int user_id, const char *name) {
     sqlite3_finalize(stmt);
 }
 
+int validade_user_category(int user_id, int category_id) {
+    sqlite3 *db = returnConnection();
+    sqlite3_stmt *stmt;
+    const char *sql = "SELECT user_id FROM categories WHERE id = ?;";
+    
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        ui_error("Erro ao validar acesso do usuário.");
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, category_id);
+
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        int user_id_curr = sqlite3_column_int(stmt, 0);
+        if (user_id_curr != user_id) {
+            ui_error("usuário não tem acesso a este cadastro. Verifique.");
+            return 0;
+        }
+    } else {
+        ui_error("Categoria não encontrada.");
+        return 0;
+    }
+
+    sqlite3_finalize(stmt);
+    return 1;
+}
+
 void editar_categoria(int id, const char *name) {
     sqlite3 *db = returnConnection();
     sqlite3_stmt *stmt;
@@ -125,6 +154,8 @@ void editar_categoria(int id, const char *name) {
         ui_error("Erro ao preparar UPDATE.");
         return;
     }
+
+    validade_user_category(1, id);
 
     sqlite3_bind_text(stmt, 1, name, -1, SQLITE_TRANSIENT);
     sqlite3_bind_int(stmt, 2, id);
