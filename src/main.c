@@ -5,8 +5,10 @@
 #include "ui.h"
 #include "Categories.h"
 #include "Bills.h"
+#include "auth.h"
 
-#define DB_PATH "../db/moneyflow.db"
+
+#define DB_PATH "db/moneyflow.db"
 
 static void menu_principal(void);
 static void menu_inicial(void);
@@ -36,11 +38,11 @@ static void menu_inicial(void) {
 
         switch (opcao) {
             case 1:
-                /* auth_login(); */
+                auth_login();
                 if (session.logged_in) menu_principal();
                 break;
             case 2:
-                /* auth_cadastro(); */
+                auth_cadastro();
                 break;
             case 0:
                 printf("Ate logo!\n");

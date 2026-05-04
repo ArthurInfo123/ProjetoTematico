@@ -38,9 +38,9 @@ int ui_read_int(const char *prompt) {
 
 void ui_read_str(const char *prompt, char *buf, int size) {
     printf("%s", prompt);
-    if (fgets(buf, size, stdin)) {
+    fflush(stdout);
+    if (fgets(buf, size, stdin))
         buf[strcspn(buf, "\n")] = '\0';
-    }
 }
 
 double ui_read_double(const char *prompt) {

@@ -73,12 +73,12 @@ void listar_categorias(int user_id) {
 
     const char *sql = "SELECT id, name FROM categories WHERE user_id = ?;";
 
-    sqlite3_bind_int(stmt, 1, user_id);
-    
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         ui_error("Erro ao listar categorias.");
         return;
     }
+
+    sqlite3_bind_int(stmt, 1, user_id);
 
     printf("\n=== CATEGORIAS ===\n");
 
