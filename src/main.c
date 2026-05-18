@@ -6,7 +6,7 @@
 #include "Categories.h"
 #include "Bills.h"
 #include "auth.h"
-
+#include "Accounts.h"
 
 #define DB_PATH "db/moneyflow.db"
 
@@ -75,7 +75,7 @@ static void menu_principal(void) {
 
         switch (opcao) {
             case 1: /* dashboard(); */   break;
-            case 2: /* menu_contas(); */ break;
+            case 2: menu_contas(); break;
             case 3:  menu_categorias();  break;
             case 4: /* menu_transacoes(); */ break;
             case 5: /* menu_cartoes(); */ break;
