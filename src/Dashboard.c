@@ -5,7 +5,7 @@
 #include "db.h"
 #include "session.h"
 #include "ui.h"
-#include "../include/dashboard.h"
+#include "../include/Dashboard.h"
 
 /* ================================================================
    SISTEMA DE BUFFER DE COLUNAS
