@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "ui.h"
+#include "session.h"
 #include "../include/Categories.h"
 
 void menu_categorias() {
@@ -20,39 +21,41 @@ void menu_categorias() {
 
         switch (opcao) {
             case 1:
-                listar_categorias(1);
+                listar_categorias(session.user_id);
+                printf("\nPressione Enter para continuar...");
+                getchar();
                 break;
 
             case 2: {
                 char name[100];
-
                 printf("Digite o nome da nova categoria: ");
                 fgets(name, sizeof(name), stdin);
                 name[strcspn(name, "\n")] = 0;
-
-                adicionar_categoria(1, name);
+                adicionar_categoria(session.user_id, name);
+                printf("\nPressione Enter para continuar...");
+                getchar();
                 break;
             }
 
             case 3: {
-                listar_categorias(1);
-                int id;
+                listar_categorias(session.user_id);
+                int id = ui_read_int("Digite o ID da categoria: ");
                 char new_name[100];
-
-                id = ui_read_int("Digite o ID da categoria: ");
-
                 printf("Digite o novo nome: ");
                 fgets(new_name, sizeof(new_name), stdin);
                 new_name[strcspn(new_name, "\n")] = 0;
-
                 editar_categoria(id, new_name);
+                printf("\nPressione Enter para continuar...");
+                getchar();
                 break;
             }
 
             case 4: {
-                listar_categorias(1);
+                listar_categorias(session.user_id);
                 int id = ui_read_int("Digite o ID da categoria: ");
                 excluir_categoria(id);
+                printf("\nPressione Enter para continuar...");
+                getchar();
                 break;
             }
 
@@ -62,6 +65,8 @@ void menu_categorias() {
 
             default:
                 ui_error("Opcao invalida.");
+                printf("\nPressione Enter para continuar...");
+                getchar();
         }
 
     } while (opcao != 0);
@@ -82,12 +87,16 @@ void listar_categorias(int user_id) {
 
     printf("\n=== CATEGORIAS ===\n");
 
+    int found = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         int id = sqlite3_column_int(stmt, 0);
         const unsigned char *name = sqlite3_column_text(stmt, 1);
-
         printf("%d - %s\n", id, name);
+        found = 1;
     }
+
+    if (!found)
+        printf("  Nenhuma categoria cadastrada.\n");
 
     sqlite3_finalize(stmt);
 }
@@ -96,8 +105,7 @@ void adicionar_categoria(int user_id, const char *name) {
     sqlite3 *db = returnConnection();
     sqlite3_stmt *stmt;
 
-    const char *sql =
-        "INSERT INTO categories (user_id, name) VALUES (?, ?);";
+    const char *sql = "INSERT INTO categories (user_id, name) VALUES (?, ?);";
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         ui_error("Erro ao preparar INSERT.");
@@ -120,9 +128,9 @@ int validade_user_category(int user_id, int category_id) {
     sqlite3 *db = returnConnection();
     sqlite3_stmt *stmt;
     const char *sql = "SELECT user_id FROM categories WHERE id = ?;";
-    
+
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
-        ui_error("Erro ao validar acesso do usuário.");
+        ui_error("Erro ao validar acesso do usuario.");
         return 0;
     }
 
@@ -130,32 +138,31 @@ int validade_user_category(int user_id, int category_id) {
 
     if (sqlite3_step(stmt) == SQLITE_ROW) {
         int user_id_curr = sqlite3_column_int(stmt, 0);
+        sqlite3_finalize(stmt);
         if (user_id_curr != user_id) {
-            ui_error("usuário não tem acesso a este cadastro. Verifique.");
+            ui_error("Usuario nao tem acesso a esta categoria.");
             return 0;
         }
-    } else {
-        ui_error("Categoria não encontrada.");
-        return 0;
+        return 1;
     }
 
     sqlite3_finalize(stmt);
-    return 1;
+    ui_error("Categoria nao encontrada.");
+    return 0;
 }
 
 void editar_categoria(int id, const char *name) {
     sqlite3 *db = returnConnection();
     sqlite3_stmt *stmt;
 
-    const char *sql =
-        "UPDATE categories SET name = ? WHERE id = ?;";
+    if (!validade_user_category(session.user_id, id)) return;
+
+    const char *sql = "UPDATE categories SET name = ? WHERE id = ?;";
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         ui_error("Erro ao preparar UPDATE.");
         return;
     }
-
-    validade_user_category(1, id);
 
     sqlite3_bind_text(stmt, 1, name, -1, SQLITE_TRANSIENT);
     sqlite3_bind_int(stmt, 2, id);
@@ -176,8 +183,9 @@ void excluir_categoria(int id) {
     sqlite3 *db = returnConnection();
     sqlite3_stmt *stmt;
 
-    const char *sql =
-        "DELETE FROM categories WHERE id = ?;";
+    if (!validade_user_category(session.user_id, id)) return;
+
+    const char *sql = "DELETE FROM categories WHERE id = ?;";
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         ui_error("Erro ao preparar DELETE.");
