@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "validation.h"
+#include "Validation.h"
 #include "ui.h"
 
 int validate_amount(double value) {
