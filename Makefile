@@ -11,7 +11,7 @@ all: $(TARGET)
 $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
-%.o: %.c
+%.o: %.c0
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 run: all

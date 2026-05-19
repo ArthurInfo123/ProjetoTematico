@@ -5,6 +5,7 @@ void listar_bills(int user_id);
 void adicionar_bills(int user_id, const char *description, double amount, int due_day);
 void editar_bills(int id, const char *description, double amount, int due_day);
 void excluir_bills(int id);
+void baixar_bill(int user_id);
 void menu_bills();
 int validate_due_day(int due_day);
 int validade_user_bills(int user_id, int bills_id); 

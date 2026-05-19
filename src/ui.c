@@ -39,8 +39,16 @@ int ui_read_int(const char *prompt) {
 void ui_read_str(const char *prompt, char *buf, int size) {
     printf("%s", prompt);
     fflush(stdout);
-    if (fgets(buf, size, stdin))
-        buf[strcspn(buf, "\n")] = '\0';
+    if (fgets(buf, size, stdin)) {
+        int pos = strcspn(buf, "\n");
+        if (buf[pos] == '\n') {
+            buf[pos] = '\0';          /* \n foi lido pelo fgets, só remove */
+        } else {
+            buf[pos] = '\0';          /* buffer cheio, \n ficou no stdin   */
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF);
+        }
+    }
 }
 
 double ui_read_double(const char *prompt) {
