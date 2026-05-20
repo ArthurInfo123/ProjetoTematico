@@ -2,7 +2,7 @@
 
 Gerenciador de finanças pessoais via interface CLI, desenvolvido em **C** com persistência em **SQLite**.
 
-Projeto acadêmico — Engenharia de Software, UNIFACEF.
+Projeto acadêmico — Engenharia de Software, UCS.
 
 ---
 
