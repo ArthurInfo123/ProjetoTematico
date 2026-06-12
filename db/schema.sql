@@ -80,3 +80,11 @@ CREATE TABLE IF NOT EXISTS loans (
     installments_paid INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
+
+CREATE TABLE IF NOT EXISTS recovery_codes (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id   INTEGER NOT NULL UNIQUE,
+    code_hash TEXT    NOT NULL,
+    used      INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);

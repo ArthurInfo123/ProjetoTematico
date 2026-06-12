@@ -101,6 +101,14 @@ void db_init(void) {
         "    installments      INTEGER NOT NULL CHECK (installments > 0),"
         "    installments_paid INTEGER NOT NULL DEFAULT 0,"
         "    FOREIGN KEY (user_id) REFERENCES users(id)"
+        ");"
+
+        "CREATE TABLE IF NOT EXISTS recovery_codes ("
+        "    id        INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "    user_id   INTEGER NOT NULL UNIQUE,"
+        "    code_hash TEXT    NOT NULL,"
+        "    used      INTEGER NOT NULL DEFAULT 0,"
+        "    FOREIGN KEY (user_id) REFERENCES users(id)"
         ");";
 
     char *err = NULL;

@@ -35,6 +35,7 @@ static void menu_inicial(void) {
         ui_header("MoneyFlow");
         printf("  1. Login\n");
         printf("  2. Cadastrar conta\n");
+        printf("  3. Recuperar senha\n");
         printf("  0. Sair\n");
         ui_divider();
         opcao = ui_read_int("Opcao: ");
@@ -46,6 +47,9 @@ static void menu_inicial(void) {
                 break;
             case 2:
                 auth_cadastro();
+                break;
+            case 3:
+                auth_recuperar_senha();
                 break;
             case 0:
                 printf("Ate logo!\n");
