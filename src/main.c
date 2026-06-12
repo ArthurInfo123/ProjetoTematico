@@ -4,11 +4,12 @@
 #include "session.h"
 #include "ui.h"
 #include "Categories.h"
+#include "Goals.h"
 #include "Bills.h"
 #include "auth.h"
 #include "Accounts.h"
 #include "Transactions.h"
-#include "../include/Dashboard.h"
+#include "Dashboard.h"
 
 #define DB_PATH "db/moneyflow.db"
 
@@ -81,7 +82,7 @@ static void menu_principal(void) {
             case 3:  menu_categorias();  break;
             case 4: menu_transacoes(); break;
             case 5: /* menu_cartoes(); */ break;
-            case 6: /* menu_metas(); */  break;
+            case 6: menu_metas();           break;
             case 7:  menu_bills();   break;
             case 8: /* menu_loans(); */  break;
             case 0:
