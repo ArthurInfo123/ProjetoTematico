@@ -70,14 +70,22 @@ CREATE TABLE IF NOT EXISTS bills (
     FOREIGN KEY (transaction_id) REFERENCES transactions(id)
 );
 
+DROP TABLE loans;
+
 CREATE TABLE IF NOT EXISTS loans (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id           INTEGER NOT NULL,
     creditor          TEXT    NOT NULL,
     total_amount      REAL    NOT NULL CHECK (total_amount > 0),
-    remaining_amount  REAL    NOT NULL,
-    installments      INTEGER NOT NULL CHECK (installments > 0),
-    installments_paid INTEGER NOT NULL DEFAULT 0,
+    remaining_amount  REAL    NOT NULL,   
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS installments_loans(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    loan_id INTEGER REFERENCES loans(id),
+    installments_value REAL  NOT NULL CHECK (installments_value > 0)
+    paid INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 

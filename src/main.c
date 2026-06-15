@@ -10,6 +10,7 @@
 #include "Accounts.h"
 #include "Transactions.h"
 #include "Dashboard.h"
+#include "Loans.h"
 
 #define DB_PATH "db/moneyflow.db"
 
@@ -87,8 +88,8 @@ static void menu_principal(void) {
             case 4: menu_transacoes(); break;
             case 5: /* menu_cartoes(); */ break;
             case 6: menu_metas();           break;
-            case 7:  menu_bills();   break;
-            case 8: /* menu_loans(); */  break;
+            case 7: menu_bills();   break;
+            case 8: menu_emprestimos();  break;
             case 0:
                 session_end();
                 printf("Logout realizado.\n");
