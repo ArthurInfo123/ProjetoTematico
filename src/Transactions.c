@@ -8,6 +8,7 @@
 #include "Accounts.h"
 #include "Categories.h"
 #include "../include/Transactions.h"
+#include "CreditCards.h"
 
 /* Atualiza o saldo de uma conta no banco. delta positivo = crédito, negativo = débito. */
 static int atualizar_saldo(int account_id, double delta) {
@@ -28,11 +29,11 @@ static int atualizar_saldo(int account_id, double delta) {
 
 /* Busca dados de uma transação garantindo que pertence ao usuário logado. */
 static int buscar_transacao(int t_id, int *account_id, char *type,
-                             double *amount, int *transfer_id) {
+                             double *amount, int *transfer_id, int *credit_card_id) {
     sqlite3 *db = returnConnection();
     sqlite3_stmt *stmt;
     const char *sql =
-        "SELECT account_id, type, amount, COALESCE(transfer_id, 0) "
+        "SELECT account_id, type, amount, COALESCE(transfer_id, 0), COALESCE(credit_card_id, 0) "
         "FROM transactions WHERE id = ? AND user_id = ?;";
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
@@ -53,6 +54,7 @@ static int buscar_transacao(int t_id, int *account_id, char *type,
     type[15]     = '\0';
     *amount      = sqlite3_column_double(stmt, 2);
     *transfer_id = sqlite3_column_int(stmt, 3);
+    *credit_card_id = sqlite3_column_int(stmt, 4);
     sqlite3_finalize(stmt);
     return 1;
 }
@@ -198,12 +200,29 @@ void registrar_receita_despesa(void) {
         return;
     }
 
+    int credit_card_id = 0;
+    if (strcmp(type, "expense") == 0) {
+        printf("\nDeseja vincular esta despesa a um cartao de credito?\n");
+        printf("  1. Sim\n");
+        printf("  0. Nao\n");
+        int vincular = ui_read_int("Opcao: ");
+        if (vincular == 1) {
+            listar_cartoes(session.user_id);
+            credit_card_id = ui_read_int("\nID do cartao de credito: ");
+            if (credit_card_id > 0 && !validate_user_credit_card(session.user_id, credit_card_id)) {
+                printf("\nPressione Enter para continuar...");
+                getchar();
+                return;
+            }
+        }
+    }
+
     sqlite3 *db = returnConnection();
     sqlite3_stmt *stmt;
     const char *sql =
         "INSERT INTO transactions "
-        "(user_id, account_id, category_id, type, amount, date, description) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?);";
+        "(user_id, account_id, category_id, credit_card_id, type, amount, date, description) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         ui_error("Erro ao preparar insercao.");
@@ -215,14 +234,21 @@ void registrar_receita_despesa(void) {
     sqlite3_bind_int(stmt, 1, session.user_id);
     sqlite3_bind_int(stmt, 2, account_id);
     sqlite3_bind_int(stmt, 3, category_id);
-    sqlite3_bind_text(stmt, 4, type, -1, SQLITE_STATIC);
-    sqlite3_bind_double(stmt, 5, amount);
-    sqlite3_bind_text(stmt, 6, date, -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt, 7, description, -1, SQLITE_TRANSIENT);
+    if (credit_card_id > 0) {
+        sqlite3_bind_int(stmt, 4, credit_card_id);
+    } else {
+        sqlite3_bind_null(stmt, 4);
+    }
+    sqlite3_bind_text(stmt, 5, type, -1, SQLITE_STATIC);
+    sqlite3_bind_double(stmt, 6, amount);
+    sqlite3_bind_text(stmt, 7, date, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 8, description, -1, SQLITE_TRANSIENT);
 
     if (sqlite3_step(stmt) == SQLITE_DONE) {
-        double delta = (strcmp(type, "income") == 0) ? amount : -amount;
-        atualizar_saldo(account_id, delta);
+        if (strcmp(type, "expense") != 0 || credit_card_id == 0) {
+            double delta = (strcmp(type, "income") == 0) ? amount : -amount;
+            atualizar_saldo(account_id, delta);
+        }
         ui_success("Movimentacao registrada com sucesso!");
     } else {
         ui_error("Erro ao salvar movimentacao.");
@@ -356,11 +382,11 @@ void editar_movimentacao(void) {
 
     listar_transacoes_usuario();
     int t_id = ui_read_int("ID da movimentacao: ");
-    int account_id, transfer_id;
+    int account_id, transfer_id, credit_card_id;
     double amount;
     char type[16] = {0};
 
-    if (!buscar_transacao(t_id, &account_id, type, &amount, &transfer_id)) {
+    if (!buscar_transacao(t_id, &account_id, type, &amount, &transfer_id, &credit_card_id)) {
         printf("\nPressione Enter para continuar...");
         getchar();
         return;
@@ -417,11 +443,13 @@ void editar_movimentacao(void) {
     sqlite3_bind_int(stmt, 5, session.user_id);
 
     if (sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0) {
-        /* Reverte o efeito antigo e aplica o novo valor no saldo */
-        double delta = (strcmp(type, "income") == 0)
-            ? (novo_valor - amount)
-            : (amount - novo_valor);
-        atualizar_saldo(account_id, delta);
+        /* Reverte o efeito antigo e aplica o novo valor no saldo se nao for cartao de credito */
+        if (strcmp(type, "expense") != 0 || credit_card_id == 0) {
+            double delta = (strcmp(type, "income") == 0)
+                ? (novo_valor - amount)
+                : (amount - novo_valor);
+            atualizar_saldo(account_id, delta);
+        }
         ui_success("Movimentacao editada com sucesso!");
     } else {
         ui_error("Erro ao editar movimentacao.");
@@ -440,11 +468,11 @@ void excluir_movimentacao(void) {
 
     listar_transacoes_usuario();
     int t_id = ui_read_int("ID da movimentacao: ");
-    int account_id, transfer_id;
+    int account_id, transfer_id, credit_card_id;
     double amount;
     char type[16] = {0};
 
-    if (!buscar_transacao(t_id, &account_id, type, &amount, &transfer_id)) {
+    if (!buscar_transacao(t_id, &account_id, type, &amount, &transfer_id, &credit_card_id)) {
         printf("\nPressione Enter para continuar...");
         getchar();
         return;
@@ -503,9 +531,11 @@ void excluir_movimentacao(void) {
 
         sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
 
-        /* Reverte o efeito no saldo */
-        double estorno = (strcmp(type, "income") == 0) ? -amount : amount;
-        atualizar_saldo(account_id, estorno);
+        /* Reverte o efeito no saldo se nao for despesa no cartao de credito */
+        if (strcmp(type, "expense") != 0 || credit_card_id == 0) {
+            double estorno = (strcmp(type, "income") == 0) ? -amount : amount;
+            atualizar_saldo(account_id, estorno);
+        }
     }
 
     ui_success("Movimentacao excluida com sucesso!");

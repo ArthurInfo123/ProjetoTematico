@@ -11,6 +11,7 @@
 #include "Transactions.h"
 #include "Dashboard.h"
 #include "Loans.h"
+#include "CreditCards.h"
 
 #define DB_PATH "db/moneyflow.db"
 
@@ -86,7 +87,7 @@ static void menu_principal(void) {
             case 2: menu_contas(); break;
             case 3:  menu_categorias();  break;
             case 4: menu_transacoes(); break;
-            case 5: /* menu_cartoes(); */ break;
+            case 5: menu_cartoes(); break;
             case 6: menu_metas();           break;
             case 7: menu_bills();   break;
             case 8: menu_emprestimos();  break;

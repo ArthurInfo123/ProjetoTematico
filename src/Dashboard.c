@@ -6,6 +6,7 @@
 #include "session.h"
 #include "ui.h"
 #include "Dashboard.h"
+#include "CreditCards.h"
 
 /* ================================================================
    SISTEMA DE BUFFER DE COLUNAS
@@ -179,6 +180,50 @@ static void bloco_placeholder(ColBuf *b, const char *titulo) {
     col_add(b, "  [Em breve] Proximas milestones.");
 }
 
+static void bloco_cartoes(ColBuf *b, int user_id) {
+    sqlite3 *db = returnConnection();
+    sqlite3_stmt *stmt;
+
+    time_t now = time(NULL);
+    struct tm *tm_ = localtime(&now);
+    char mes_ano[8], like_pat[14];
+    strftime(mes_ano, sizeof(mes_ano), "%m/%Y", tm_);
+    snprintf(like_pat, sizeof(like_pat), "%%/%s", mes_ano);
+
+    col_add(b, "  CARTOES DE CREDITO");
+    col_add(b, DIV_COL);
+
+    const char *sql =
+        "SELECT c.id, c.name, c.\"limit\", "
+        "       (SELECT COALESCE(SUM(t.amount), 0.0) FROM transactions t "
+        "        WHERE t.credit_card_id = c.id AND t.date LIKE ? AND t.type = 'expense') AS spent "
+        "FROM credit_cards c "
+        "WHERE c.user_id = ? "
+        "ORDER BY c.name;";
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        col_add(b, "  [ERRO] Falha ao carregar cartoes.");
+        return;
+    }
+    sqlite3_bind_text(stmt, 1, like_pat, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 2, user_id);
+
+    int found = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char *name = (const char *)sqlite3_column_text(stmt, 1);
+        double limit     = sqlite3_column_double(stmt, 2);
+        double spent     = sqlite3_column_double(stmt, 3);
+        double avail     = limit - spent;
+        const char *alert = (avail < 0.2 * limit) ? " [!]" : "";
+
+        col_add(b, "  %-10.10s R$%7.2f / R$%7.2f%s", name, avail, limit, alert);
+        found = 1;
+    }
+    sqlite3_finalize(stmt);
+
+    if (!found) col_add(b, "  Nenhum cartao cadastrado.");
+}
+
 //principal
 void dashboard(void) {
     ui_clear();
@@ -202,7 +247,7 @@ void dashboard(void) {
     bloco_bills(&dir, session.user_id);
     bloco_placeholder(&dir, "METAS FINANCEIRAS");
     bloco_placeholder(&dir, "EMPRESTIMOS");
-    bloco_placeholder(&dir, "CARTOES DE CREDITO");
+    bloco_cartoes(&dir, session.user_id);
 
     /* Renderiza */
     printf("\n");
