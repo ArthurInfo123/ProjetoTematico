@@ -42,7 +42,7 @@ static void col_render(const ColBuf *L, const ColBuf *R) {
     }
 }
 
-//coluna esquerda
+// coluna esquerda
 static double bloco_contas(ColBuf *b, int user_id) {
     sqlite3 *db = returnConnection();
     sqlite3_stmt *stmt;
@@ -63,7 +63,6 @@ static double bloco_contas(ColBuf *b, int user_id) {
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         const char *name = (const char *)sqlite3_column_text(stmt, 0);
         double bal       = sqlite3_column_double(stmt, 1);
-        /* "  Nome                R$ 9999.99" = 2+20+4+7 = 33 chars */
         col_add(b, "  %-20.20s  R$ %8.2f", name, bal);
         total += bal;
         found  = 1;
@@ -77,7 +76,7 @@ static double bloco_contas(ColBuf *b, int user_id) {
     return total;
 }
 
-//coluan direita
+// coluna esquerda
 static void bloco_movimentacoes(ColBuf *b, int user_id) {
     sqlite3 *db = returnConnection();
     sqlite3_stmt *stmt;
@@ -114,7 +113,6 @@ static void bloco_movimentacoes(ColBuf *b, int user_id) {
     sqlite3_finalize(stmt);
 
     double bal = rec - desp;
-    /* "  Receitas       R$ 9999999.99" = 2+15+4+10 = 31 chars */
     col_add(b, "  Receitas       R$ %10.2f", rec);
     col_add(b, "  Despesas       R$ %10.2f", desp);
     col_add(b, "  ......................................");
@@ -124,7 +122,7 @@ static void bloco_movimentacoes(ColBuf *b, int user_id) {
         col_add(b, "  Balanco   (-)  R$ %10.2f", bal);
 }
 
-//direita
+// coluna direita
 static void bloco_bills(ColBuf *b, int user_id) {
     sqlite3 *db = returnConnection();
     sqlite3_stmt *stmt;
@@ -152,8 +150,6 @@ static void bloco_bills(ColBuf *b, int user_id) {
         int         day  = sqlite3_column_int(stmt, 2);
         int         paid = sqlite3_column_int(stmt, 3);
 
-        /* [PEND] d.05 Descricao123  R$999.99
-           6     + 5  + 13          + 9 = 33 chars + 2 indent = 35 */
         col_add(b, "  %s d.%02d %-13.13s R$%6.2f",
                 paid ? "[PAGO]" : "[PEND]", day, desc, amt);
 
@@ -172,14 +168,97 @@ static void bloco_bills(ColBuf *b, int user_id) {
     col_add(b, "  Pago           R$ %10.2f", pago);
 }
 
-//direita
-static void bloco_placeholder(ColBuf *b, const char *titulo) {
+// coluna direita
+static void bloco_metas(ColBuf *b, int user_id) {
+    sqlite3 *db = returnConnection();
+    sqlite3_stmt *stmt;
+
     col_add(b, "");
-    col_add(b, "  %s", titulo);
+    col_add(b, "  METAS FINANCEIRAS");
     col_add(b, DIV_COL);
-    col_add(b, "  [Em breve] Proximas milestones.");
+
+    const char *sql =
+        "SELECT name, target_amount, current_amount, deadline "
+        "FROM goals WHERE user_id=? ORDER BY deadline ASC;";
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        col_add(b, "  [ERRO] Falha ao carregar metas.");
+        return;
+    }
+    sqlite3_bind_int(stmt, 1, user_id);
+
+    int found = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char *name    = (const char *)sqlite3_column_text(stmt, 0);
+        double target        = sqlite3_column_double(stmt, 1);
+        double current       = sqlite3_column_double(stmt, 2);
+        const char *deadline = (const char *)sqlite3_column_text(stmt, 3);
+
+        double pct = (target > 0) ? (current / target * 100.0) : 0.0;
+        if (pct > 100.0) pct = 100.0;
+
+        // barra de progresso visual com 10 blocos
+        int blocos = (int)(pct / 10.0);
+        char barra[12];
+        for (int i = 0; i < 10; i++)
+            barra[i] = (i < blocos) ? '#' : '-';
+        barra[10] = '\0';
+
+        col_add(b, "  %-14.14s %s %3.0f%%", name, barra, pct);
+        col_add(b, "  R$%7.2f / R$%7.2f  ate %s", current, target,
+                deadline ? deadline : "s/prazo");
+        found = 1;
+    }
+    sqlite3_finalize(stmt);
+
+    if (!found) col_add(b, "  Nenhuma meta cadastrada.");
 }
 
+// coluna direita
+static void bloco_emprestimos(ColBuf *b, int user_id) {
+    sqlite3 *db = returnConnection();
+    sqlite3_stmt *stmt;
+
+    col_add(b, "");
+    col_add(b, "  EMPRESTIMOS");
+    col_add(b, DIV_COL);
+
+    const char *sql =
+        "SELECT creditor, total_amount, remaining_amount "
+        "FROM loans WHERE user_id=? ORDER BY remaining_amount DESC;";
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        col_add(b, "  [ERRO] Falha ao carregar emprestimos.");
+        return;
+    }
+    sqlite3_bind_int(stmt, 1, user_id);
+
+    double total_restante = 0.0;
+    int found = 0;
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char *credor    = (const char *)sqlite3_column_text(stmt, 0);
+        double total           = sqlite3_column_double(stmt, 1);
+        double remaining       = sqlite3_column_double(stmt, 2);
+        double pago            = total - remaining;
+        double pct_pago        = (total > 0) ? (pago / total * 100.0) : 0.0;
+
+        col_add(b, "  %-14.14s %3.0f%% pago", credor, pct_pago);
+        col_add(b, "  Restante: R$ %8.2f / R$ %.2f", remaining, total);
+        total_restante += remaining;
+        found = 1;
+    }
+    sqlite3_finalize(stmt);
+
+    if (!found) {
+        col_add(b, "  Nenhum emprestimo cadastrado.");
+        return;
+    }
+    col_add(b, "  ......................................");
+    col_add(b, "  Total restante  R$ %10.2f", total_restante);
+}
+
+// coluna esquerda
 static void bloco_cartoes(ColBuf *b, int user_id) {
     sqlite3 *db = returnConnection();
     sqlite3_stmt *stmt;
@@ -190,6 +269,7 @@ static void bloco_cartoes(ColBuf *b, int user_id) {
     strftime(mes_ano, sizeof(mes_ano), "%m/%Y", tm_);
     snprintf(like_pat, sizeof(like_pat), "%%/%s", mes_ano);
 
+    col_add(b, "");
     col_add(b, "  CARTOES DE CREDITO");
     col_add(b, DIV_COL);
 
@@ -224,7 +304,7 @@ static void bloco_cartoes(ColBuf *b, int user_id) {
     if (!found) col_add(b, "  Nenhum cartao cadastrado.");
 }
 
-//principal
+// principal
 void dashboard(void) {
     ui_clear();
 
@@ -233,27 +313,23 @@ void dashboard(void) {
     char data_hora[32];
     strftime(data_hora, sizeof(data_hora), "%d/%m/%Y  %H:%M", tm_);
 
-    /* Cabecalho ASCII */
     printf("%s\n", DIV_FULL);
     printf("  MoneyFlow  |  %s  |  Ola, %s\n", data_hora, session.username);
     printf("%s\n", DIV_FULL);
 
-    /* Monta colunas */
     ColBuf esq = { .count = 0 };
     double total = bloco_contas(&esq, session.user_id);
     bloco_movimentacoes(&esq, session.user_id);
+    bloco_cartoes(&esq, session.user_id);
 
     ColBuf dir = { .count = 0 };
     bloco_bills(&dir, session.user_id);
-    bloco_placeholder(&dir, "METAS FINANCEIRAS");
-    bloco_placeholder(&dir, "EMPRESTIMOS");
-    bloco_cartoes(&dir, session.user_id);
+    bloco_metas(&dir, session.user_id);
+    bloco_emprestimos(&dir, session.user_id);
 
-    /* Renderiza */
     printf("\n");
     col_render(&esq, &dir);
 
-    /* Rodape */
     printf("\n%s\n", DIV_FULL);
     printf("  Saldo consolidado total: R$ %.2f\n", total);
     printf("%s\n", DIV_FULL);
